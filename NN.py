@@ -30,12 +30,12 @@ class Brain:
         print('\n')
         # Add the number of specified neurons to each layer
         for k in range(len(layers)):
-            for l in range(layers[k][1]):
-
+            for l in range(layers[k]):
                 loop_num += 1
                 percentage_total += 1
                 print('\r', " ".join((neuron_lang, loading_signs[loop_num % 4])), end='')
-                Neuron(layers[k][0])
+                Neuron(k)
+
         print('\n')
 
         # Link all neurons with connections
@@ -174,9 +174,9 @@ if __name__ == "__main__":
     # so we can get reproducible results and tweak our layer sizes for experimentation
     np.random.seed(2)
 
-    brain = Brain([[0, 1], [1, 10], [2, 1]])
+    brain = Brain([2, 2, 1])
 
-    brain.train([[1], [0]],
+    brain.train([[1, 1], [0, 0]],
 
                 [1, 0],
 

@@ -23,30 +23,23 @@ Steps:
 4. Stop at output
 
 #### **Calculate cost**:
-1. Add up squares of the differences of what you got vs what you want for cost (received - desired)^2
+(system guess - known answer)^2
 
 #### **Calculate error**:
-1. (known answer - system guess)
+(known answer - system guess)
 
 #### **Back Propagate**:
-1. Learn calculus
-
-weights
-output of the hidden layer passed through the derivative of sigmoid
-multiply above by the output errors of the neurons
-multiply above my the learning rate
-multiply above by the input of the last neuron
-
-biases
-output of the hidden layer passed through the derivative of sigmoid
-multiply above by the output errors of the neurons
-multiply above my the learning rate
-
-
-I -  H \
-  \/
-  /\     O
-I -  H /
-
-input to first hidden:
-learning rate * hidden error * derivative(hidden) * input
+1. FOR WEIGHTS:
+2. output of the hidden layer passed through the derivative of sigmoid
+3. multiply above by the output errors of the neurons
+4. multiply above my the learning rate
+5. multiply above by the input of the last neuron
+>
+**learning rate * hidden error * derivative(hidden) * input**
+>
+1. FOR BIASES
+2. output of the hidden layer passed through the derivative of sigmoid
+3. multiply above by the output errors of the neurons
+4. multiply above my the learning rate
+>
+**learning rate * hidden error * derivative(hidden)**
