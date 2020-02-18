@@ -1,18 +1,23 @@
 import numpy as np
 import sys
-from PIL import Image as im
 
 neurons = []
 loading_signs = ['[|]', '[/]', '[–]', '[\\]']
 
 
+# The main class that handles the creation of the model, training (this includes feeding forward and back propagation),
+# math like sigmoid and the derivative of sigmoid, and predicting unknown values.
 class Brain:
 
-    def __init__(self, layers):
+    def __init__(self, layers, verbose=0):
+        # Setting a random seed is a good idea,
+        # so we can get reproducible results and tweak our layer sizes for experimentation
+        np.random.seed(1)
 
         self.layers = len(layers)
         self.learning_rate = 0.1
         self.cost = 0
+        self.verbose = verbose
 
         loop_num = 0
         percentage_total = 0
@@ -27,7 +32,7 @@ class Brain:
             print('\r', " ".join((array_lang, loading_signs[loop_num % 4])), end='')
 
             neurons.append([])
-
+        print('\r', " ".join((array_lang, "[✓]")), end='')
         print('\n')
         # Add the number of specified neurons to each layer
         for k in range(len(layers)):
@@ -36,7 +41,7 @@ class Brain:
                 percentage_total += 1
                 print('\r', " ".join((neuron_lang, loading_signs[loop_num % 4])), end='')
                 Neuron(k)
-
+        print('\r', " ".join((neuron_lang, "[✓]")), end='')
         print('\n')
 
         # Link all neurons with connections
@@ -50,7 +55,7 @@ class Brain:
                         Connection(neurons[m][n], neurons[m + 1][o])
 
         # TODO: Make sure that all connections are in the right spots for back propagation
-
+        print('\r', " ".join((connection_lang, "[✓]")), end='')
         print('\n')
 
     def feed_forward(self, l, inputs):
@@ -72,15 +77,15 @@ class Brain:
 
                     neurons[n][o].value = self.sigmoid(temp_value + neurons[n][o].bias)
 
-    def back_propagate(self, l, outputs, verbose=False):
+    def back_propagate(self, l, outputs):
         # for a lot of these, we will do a reversed enumerated list in order to back propagate, well, backwards
 
-        if verbose: print('\n**** Back Propogatation ***')
+        if self.verbose >= 2: print('\n**** Back Propogatation ***')
 
         # now, we can calculate the error of the output
         for q in range(len(neurons[len(neurons) - 1])):
             neurons[len(neurons) - 1][q].error = float(outputs[l][q]) - float(neurons[len(neurons) - 1][q].value)
-            if verbose: print('Error of the output neuron', q, 'during output', l, 'is', neurons[len(neurons) - 1][q].error)
+            if self.verbose >= 2: print('Error of the output neuron', q, 'during output', l, 'is', neurons[len(neurons) - 1][q].error)
 
         # Here we calculate the error of all the hidden layers' neurons
         for r, s in reversed(list(enumerate(neurons))):
@@ -92,7 +97,7 @@ class Brain:
                         temp_error += neurons[r][x].connections_forward[z][1].weight * neurons[r][x].connections_forward[z][0].error
 
                     neurons[r][x].error = float(temp_error)
-                    if verbose: print('Error of the hidden neuron', x, ' in layer ', r, 'during output', l, 'is', neurons[r][x].error)
+                    if self.verbose >= 2: print('Error of the hidden neuron', x, ' in layer ', r, 'during output', l, 'is', neurons[r][x].error)
 
         # Finally, we calculate and set the weights accordingly
         for t, u in reversed(list(enumerate(neurons))):
@@ -105,14 +110,14 @@ class Brain:
                     adjustment_bias = ((error_forward * gradient) * self.learning_rate)
                     adjustment_weight = (((error_forward * gradient) * neurons[t][v].value) * self.learning_rate)
 
-                    if verbose: print('Adjustments for weight in between layer ', t, 'and', t - 1, 'is going to be', adjustment_weight)
-                    if verbose: print('Adjustments for biases in layer ', t, 'is going to be', adjustment_bias)
+                    if self.verbose >= 2: print('Adjustments for weight in between layer ', t, 'and', t - 1, 'is going to be', adjustment_weight)
+                    if self.verbose >= 2: print('Adjustments for biases in layer ', t, 'is going to be', adjustment_bias)
 
                     neurons[t][v].connections_forward[w][1].weight += float(adjustment_weight)
                     neurons[t][v].bias = float(adjustment_bias) + float(neurons[t][v].bias)
 
-                    if verbose: print('New for weight in between layer ', t, 'and', t - 1, 'is', neurons[t][v].connections_forward[w][1].weight)
-                    if verbose: print('New for bias in layer ', t, 'is', neurons[t][v].bias)
+                    if self.verbose >= 2: print('New for weight in between layer ', t, 'and', t - 1, 'is', neurons[t][v].connections_forward[w][1].weight)
+                    if self.verbose >= 2: print('New for bias in layer ', t, 'is', neurons[t][v].bias)
 
     def train(self, inputs, desired_output, epochs):
 
@@ -126,7 +131,7 @@ class Brain:
 
         # Real training time!
         for k in range(epochs):
-            print('\n', "Epoch", k)
+            if self.verbose >= 1: print('\n', "Epoch", k + 1)
 
             # For each input, run this loop!
             for l in range(len(inputs)):
@@ -137,15 +142,21 @@ class Brain:
                 output_neuron_outputs = []
                 for m in neurons[len(neurons) - 1]:
                     output_neuron_outputs.append(m.value)
-                print("For input: ", inputs[l], ", The output was Actual: ", desired_output[l], " – Guess: ", output_neuron_outputs, sep='')
-                self.back_propagate(l, desired_output, verbose=False)
+                if self.verbose >= 1: print("For input: ", inputs[l], ", The output was Actual: ", desired_output[l], " – Guess: ", output_neuron_outputs, sep='')
+                self.back_propagate(l, desired_output)
 
                 # get all output errors
                 output_neuron_error = []
                 for n in neurons[len(neurons) - 1]:
                     output_neuron_error.append(float(n.error))
 
-                print("Input: ", l + 1, " – error on output: ", output_neuron_error, sep='')
+                if self.verbose >= 1: print("Input: ", l + 1, " – error on output: ", output_neuron_error, sep='')
+
+            accuracy = 0
+            for o_neuron in neurons[len(neurons) - 1]:
+                accuracy += (o_neuron.error) ** 2
+
+            if self.verbose == 0: print('\r', "Epoch: ", k + 1, " Accuracy: ", f'{100 - (accuracy * 100):.2f}', "%", end='', sep='')
 
     @staticmethod
     def sigmoid(x):
@@ -198,48 +209,7 @@ class Connection:
         destination_neuron.add_backward_connection(source_neuron, self)
 
 
-def load_images():
-
-    white1 = np.array(im.open('Images/white1.jpg', 'r').convert('RGB').getdata()).flatten().tolist()
-    white1 = prep_array(white1, 255)
-    white2 = np.array(im.open('Images/white2.jpg', 'r').convert('RGB').getdata()).flatten().tolist()
-    white2 = prep_array(white2, 255)
-    white3 = np.array(im.open('Images/white3.jpg', 'r').convert('RGB').getdata()).flatten().tolist()
-    white3 = prep_array(white3, 255)
-    white4 = np.array(im.open('Images/white4.jpg', 'r').convert('RGB').getdata()).flatten().tolist()
-    white4 = prep_array(white4, 255)
-    white5 = np.array(im.open('Images/white5.jpg', 'r').convert('RGB').getdata()).flatten().tolist()
-    white5 = prep_array(white5, 255)
-    black1 = np.array(im.open('Images/black1.jpg', 'r').convert('RGB').getdata()).flatten().tolist()
-    black1 = prep_array(black1, 255)
-    black2 = np.array(im.open('Images/black2.jpg', 'r').convert('RGB').getdata()).flatten().tolist()
-    black2 = prep_array(black2, 255)
-    black3 = np.array(im.open('Images/black3.jpg', 'r').convert('RGB').getdata()).flatten().tolist()
-    black3 = prep_array(black3, 255)
-    black4 = np.array(im.open('Images/black4.jpg', 'r').convert('RGB').getdata()).flatten().tolist()
-    black4 = prep_array(black4, 255)
-    black5 = np.array(im.open('Images/black5.jpg', 'r').convert('RGB').getdata()).flatten().tolist()
-    black5 = prep_array(black5, 255)
-
-    return [white1, white2, white3, white4, white5, black1, black2, black3, black4, black5]
-
-
 def prep_array(array, divisor):
     for i in range(len(array)):
         array[i] = array[i] / divisor
     return array
-
-
-if __name__ == "__main__":
-
-    # Setting a random seed is a good idea,
-    # so we can get reproducible results and tweak our layer sizes for experimentation
-    np.random.seed(1)
-
-    brain = Brain([3, 6, 2, 1])
-
-    brain.train([[1, 0, 1], [0, 0, 0], [0, 1, 1], [1, 1, 1]],
-                [[1], [0], [0], [1]],
-                10000)
-
-    print(brain.predict([[1, 0, 0]]))
