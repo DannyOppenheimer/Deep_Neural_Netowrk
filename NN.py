@@ -162,8 +162,8 @@ class Brain:
         sys.exit(message)
 
     def predict(self, inputs):
-        for i in range(len(inputs)):
-            self.feed_forward(0, inputs)
+
+        self.feed_forward(0, inputs)
 
         output_neuron_outputs = []
         for j in range(len(neurons[len(neurons) - 1])):
@@ -236,11 +236,10 @@ if __name__ == "__main__":
     # so we can get reproducible results and tweak our layer sizes for experimentation
     np.random.seed(1)
 
-    brain = Brain([2, 3, 2])
+    brain = Brain([3, 6, 2, 1])
 
-    brain.train([[0, 1], [1, 0]],
-                # TODO: implement multiple neuron output layer
-                [[0, 1], [1, 0]],
-
+    brain.train([[1, 0, 1], [0, 0, 0], [0, 1, 1], [1, 1, 1]],
+                [[1], [0], [0], [1]],
                 10000)
 
+    print(brain.predict([[1, 0, 0]]))
