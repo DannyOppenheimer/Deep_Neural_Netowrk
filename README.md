@@ -1,4 +1,4 @@
-# Neural Network Battle Plan
+# Artificial Neural Network Battle Plan
 
 ## Have layers of neurons as neuron objects in an array
 
@@ -22,13 +22,13 @@ Steps:
 3. For every other neuron starting at layer 1, set their value to the values from all connected neurons, multiplied by all connected weights, and added to its bias. (All this is squished by a sigmoid function)
 4. Stop at output
 
-#### **Calculate cost**:
-(system guess - known answer)^2
-
-#### **Calculate error**:
-(known answer - system guess)
-
 #### **Back Propagate**:
+1. FOR ERROR
+2. Calculate error for output layer: (known answer - system guess)
+3. Calculate error for all of the hidden layers, back to front 
+>
+((Forward_Weight₁ * Forward_Neuron₁) + (Forward_Weight₂ * Forward_Neuron₂) ...)
+>
 1. FOR WEIGHTS:
 2. output of the hidden layer passed through the derivative of sigmoid
 3. multiply above by the output errors of the neurons
