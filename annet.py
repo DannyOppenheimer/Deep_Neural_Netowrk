@@ -1,5 +1,7 @@
 import numpy as np
 import sys
+import pickle as pkl
+import re
 
 
 # The main class that handles the creation of the ANN model, training (including feeding forward and back propagation),
@@ -14,9 +16,9 @@ class ANN:
 
         self.layers = len(layers)
         self.learning_rate = learning_rate
-        self.verbose = verbose
         self.neurons = []
 
+        self.verbose = verbose
         self.loading_signs = ["[|]", "[/]", "[–]", "[\\]"]
 
         loop_num = 0
@@ -41,6 +43,7 @@ class ANN:
                 loop_num += 1
                 percentage_total += 1
                 print("\r", " ".join((neuron_lang, self.loading_signs[loop_num % 4])), end="")
+
                 Neuron(i, self.neurons)
         print("\r", " ".join((neuron_lang, "[✓]")), end="")
         print("\n")
@@ -152,7 +155,7 @@ class ANN:
 
             accuracy = 0
             for o_neuron in self.neurons[-1]:
-                accuracy += (o_neuron.error) ** 2
+                accuracy += o_neuron.error ** 2
 
             if self.verbose == 0: print("\r", "Epoch: ", epoch + 1, " Accuracy: ", f"{100 - (accuracy * 100):.2f}", "%", end="", sep="")
 
@@ -190,7 +193,7 @@ class ANN:
             if len(output_iter) > len(self.neurons[-1]) or len(output_iter) < len(self.neurons[-1]):
                 self.shut_down_model("Number of outputs does not match the number of output neurons")
 
-            for j, output_num in enumerate(input_iter):
+            for j, output_num in enumerate(check_outputs):
                 if output_num > 1 or output_num < -1:
                     self.shut_down_model("Detected output with a value outside range [-1, 1]")
                 try:
@@ -215,8 +218,6 @@ class Neuron:
         self.layer_num = layer
 
         self.value = 0
-        self.bias = 0
-        self.error = 0
 
         neurons[layer].append(self)
 
@@ -239,3 +240,31 @@ def prep_array(array, divisor):
     for i in range(len(array)):
         array[i] = array[i] / divisor
     return array
+
+
+def load_model(file):
+    file_extension = re.search("[^.]*$", file)
+    if file_extension.group(0) == "pickle":
+        try:
+            infile = open(file, 'rb')
+        except FileNotFoundError:
+            sys.exit(("There is no file under the name " + file))
+    else:
+        try:
+            infile = open(file + ".pickle", 'rb')
+        except FileNotFoundError:
+            sys.exit(("There is no file under the name " + file + ".pickle"))
+    loaded_model = pkl.load(infile)
+    infile.close()
+    return loaded_model
+
+
+def save_model(model, file):
+    file_extension = re.search("[^.]*$", file)
+
+    if file_extension.group(0) == "pickle":
+        outfile = open(file, 'wb')
+    else:
+        outfile = open(file + ".pickle", 'wb')
+    pkl.dump(model, outfile)
+    outfile.close()
