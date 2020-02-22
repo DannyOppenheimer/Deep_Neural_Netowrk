@@ -1,6 +1,5 @@
 import numpy as np
 import sys
-import pickle as pkl
 import re
 
 
@@ -35,8 +34,7 @@ class ANN:
             # Each of these arrays-in-arrays will hold a layers worth of neurons
             self.neurons.append([])
 
-        print("\r", " ".join((array_lang, "[✓]")), end="")
-        print("\n")
+        print("\r", " ".join((array_lang, "[✓]\n")))
         # Add the number of specified neurons to each layer
         for i in range(len(layers)):
             for _ in range(layers[i]):
@@ -45,8 +43,7 @@ class ANN:
                 print("\r", " ".join((neuron_lang, self.loading_signs[loop_num % 4])), end="")
 
                 Neuron(i, self.neurons)
-        print("\r", " ".join((neuron_lang, "[✓]")), end="")
-        print("\n")
+        print("\r", " ".join((neuron_lang, "[✓]\n")))
 
         # Link all neurons with connections
         for i in range(len(self.neurons)):
@@ -58,8 +55,7 @@ class ANN:
                 if i != len(self.neurons) - 1:
                     for forward_neuron in self.neurons[i + 1]:
                         Connection(neuron, forward_neuron)
-        print("\r", " ".join((connection_lang, "[✓]")), end="")
-        print("\n")
+        print("\r", " ".join((connection_lang, "[✓]\n")))
 
     def feed_forward(self, l, inputs):
 
@@ -102,7 +98,7 @@ class ANN:
                         temp_error += connection_pair[1].weight * connection_pair[0].error
 
                     neuron.error = temp_error
-                    if self.verbose >= 2: print("Error of the hidden neuron in layer ",neuron.layer, "during output", l, "is", neuron.error)
+                    if self.verbose >= 2: print("Error of the hidden neuron in layer ", neuron.layer, "during output", l, "is", neuron.error)
 
         # Finally, we calculate and set the weights accordingly
         for i, neuron_list in reversed(list(enumerate(self.neurons))):
@@ -153,17 +149,23 @@ class ANN:
 
                 if self.verbose >= 1: print("Input: ", l + 1, " – error on output: ", output_neuron_error, sep="")
 
-            accuracy = 0
-            for o_neuron in self.neurons[-1]:
-                accuracy += o_neuron.error ** 2
+                accuracy = 0
+                for o_neuron in self.neurons[-1]:
+                    accuracy += o_neuron.error ** 2
 
-            if self.verbose == 0: print("\r", "Epoch: ", epoch + 1, " Accuracy: ", f"{100 - (accuracy * 100):.2f}", "%", end="", sep="")
+                print("\r", "Epoch ", epoch + 1, " Error Mitigation: ", f"{100 - (accuracy * 100):.2f}", "%", end="", sep="")
 
     @staticmethod
     def sigmoid(x):
         # The sigmoid function is an S shaped line that will squash our numbers down in between 0 and 1,
         # sort of like the probability of that neuron being the one we want.
-        return 1 / (1 + np.exp(-x))
+        # using this if statement will help with errors being raised on too large or too small numbers
+        if x >= 0:
+            z = np.exp(-x)
+            return 1 / (1 + z)
+        else:
+            z = np.exp(x)
+            return z / (1 + z)
 
     @staticmethod
     def sigmoid_derivative(x):
@@ -171,21 +173,17 @@ class ANN:
 
     def shut_down_model(self, message):
         self.neurons.clear()
-        sys.exit(message)
+        raise ValueError(message)
 
     def input_output_checks(self, check_outputs, check_inputs):
         # Inputs and outputs will come in as [[X, X], [X, X]]
         # Check if inputs match input layer, and if any are above 1 or below -1
-        for input_iter in check_inputs:
+        for i, input_iter in enumerate(check_inputs):
             if len(input_iter) > len(self.neurons[0]) or len(input_iter) < len(self.neurons[0]):
-                self.shut_down_model("Number of inputs does not match the number of input neurons")
-            for i, input_num in enumerate(input_iter):
+                self.shut_down_model("Number of inputs does not match the number of input neurons at point " + str(i))
+            for input_num in input_iter:
                 if input_num > 1 or input_num < -1:
-                    self.shut_down_model("Detected input with a value outside range [-1, 1]")
-                try:
-                    check_outputs[i]
-                except IndexError:
-                    self.shut_down_model("The inputs do not match the outputs!")
+                    self.shut_down_model("Input has a value outside range [-1, 1]")
 
         # Check if outputs match ouput layer, and if any are above 1 or below -1
         for i, output_iter in enumerate(check_outputs):
@@ -193,13 +191,10 @@ class ANN:
             if len(output_iter) > len(self.neurons[-1]) or len(output_iter) < len(self.neurons[-1]):
                 self.shut_down_model("Number of outputs does not match the number of output neurons")
 
-            for j, output_num in enumerate(check_outputs):
-                if output_num > 1 or output_num < -1:
-                    self.shut_down_model("Detected output with a value outside range [-1, 1]")
-                try:
-                    check_inputs[j]
-                except IndexError:
-                    self.shut_down_model("The outputs do not match the inputs!")
+            for j, outputs in enumerate(check_outputs):
+                for output_num in outputs:
+                    if output_num > 1 or output_num < -1:
+                        self.shut_down_model("Output has a value outside range [-1, 1] at point " + str(j))
 
     def predict(self, inputs):
 
@@ -216,7 +211,7 @@ class Neuron:
         self.connections_forward = []
         self.connections_back = []
         self.layer_num = layer
-
+        self.bias = 0
         self.value = 0
 
         neurons[layer].append(self)
@@ -231,7 +226,7 @@ class Neuron:
 class Connection:
     def __init__(self, source_neuron, destination_neuron):
 
-        self.weight = (np.random.random(1) - 1)[0]
+        self.weight = (2 * np.random.random(1) - 1)[0]
         source_neuron.add_forward_connection(destination_neuron, self)
         destination_neuron.add_backward_connection(source_neuron, self)
 
@@ -244,27 +239,27 @@ def prep_array(array, divisor):
 
 def load_model(file):
     file_extension = re.search("[^.]*$", file)
-    if file_extension.group(0) == "pickle":
+    if file_extension.group(0) == "npy":
         try:
             infile = open(file, 'rb')
         except FileNotFoundError:
-            sys.exit(("There is no file under the name " + file))
+            raise ValueError("There is no file under the name " + file)
     else:
         try:
-            infile = open(file + ".pickle", 'rb')
+            infile = open(file + ".npy", 'rb')
         except FileNotFoundError:
-            sys.exit(("There is no file under the name " + file + ".pickle"))
-    loaded_model = pkl.load(infile)
+            raise ValueError("There is no file under the name " + file + ".pickle")
+    loaded_model = np.load(infile, allow_pickle=True)
     infile.close()
-    return loaded_model
+    return loaded_model[()]
 
 
 def save_model(model, file):
     file_extension = re.search("[^.]*$", file)
 
-    if file_extension.group(0) == "pickle":
+    if file_extension.group(0) == "npy":
         outfile = open(file, 'wb')
     else:
-        outfile = open(file + ".pickle", 'wb')
-    pkl.dump(model, outfile)
+        outfile = open(file + ".npy", 'wb')
+    np.save(outfile, model)
     outfile.close()
