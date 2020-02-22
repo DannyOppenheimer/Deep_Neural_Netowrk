@@ -1,16 +1,19 @@
 import numpy as np
 import sys
 import re
+# TODO: Add CNN and RNN functionality
 
 
-# The main class that handles the creation of the ANN model, training (including feeding forward and back propagation),
-# math like sigmoid and the derivative of sigmoid, and predicting unknown values.
-# TODO: Make new classes for RNNs and CNNs (a big task)
+# ************************ Artificial Neural Network ************************
+# Instantiate this class to create a fully-connected ANN, most commonly used for classification
+# It's high-abstraction functions are Train and Predict
+# The model follows this basic path: Input-Validation > Feed-Forward > Back-Propagate
+# ****************************************************************************
 class ANN:
 
+    # The constructor for the ANN creates the layers, the neurons in those layers, and the connections to those neurons
     def __init__(self, layers, verbose=0, learning_rate=0.1):
-        # Setting a random seed is a good idea,
-        # so we can get reproducible results and tweak our layer sizes for experimentation
+
         np.random.seed(1)
 
         self.layers = len(layers)
@@ -27,71 +30,63 @@ class ANN:
         neuron_lang = "Adding neurons to array."
         connection_lang = "Adding connections to each neuron"
 
-        # Create an array with the specified layer size
         for _ in layers:
             loop_num += 1
             print("\r", " ".join((array_lang, self.loading_signs[loop_num % 4])), end="")
-            # Each of these arrays-in-arrays will hold a layers worth of neurons
             self.neurons.append([])
-
         print("\r", " ".join((array_lang, "[✓]\n")))
-        # Add the number of specified neurons to each layer
+
         for i in range(len(layers)):
             for _ in range(layers[i]):
                 loop_num += 1
                 percentage_total += 1
                 print("\r", " ".join((neuron_lang, self.loading_signs[loop_num % 4])), end="")
-
                 Neuron(i, self.neurons)
         print("\r", " ".join((neuron_lang, "[✓]\n")))
 
-        # Link all neurons with connections
         for i in range(len(self.neurons)):
             for neuron in self.neurons[i]:
                 percentage_current += 1
                 print("\r", " ".join((connection_lang, str(int(((percentage_current / percentage_total) * 100))), "%",
                                       self.loading_signs[percentage_current % 4])), end="", sep="")
-
                 if i != len(self.neurons) - 1:
                     for forward_neuron in self.neurons[i + 1]:
                         Connection(neuron, forward_neuron)
         print("\r", " ".join((connection_lang, "[✓]\n")))
 
+    # The feed forward function goes forward through each layer, setting each neuron's value to the sigmoid-squashed
+    # value from each weight and neuron before it.
     def feed_forward(self, l, inputs):
 
-        # This is our feed-forward step. We are first initializing our input neurons with the input values
         for i in range(len(self.neurons[0])):
             self.neurons[0][i].value = inputs[l][i]
 
-        # Now we set all the other neurons values
         for i in range(len(self.neurons)):
             if i != 0:
                 for neuron in self.neurons[i]:
-                    # Create a temporary value to add our Weight * NeuronVal to
                     temp_value = 0
 
-                    # For each connection backwards, set neuron"s own value to (Weight * NeuronVal) + Bias
+                    # Using the backward connections for a forward pass might seem counter-intuitive, but it's easier
+                    # to add up all the values in the last layer than finding the other values of a neurons neighbors.
                     for connection_pair in neuron.connections_back:
                         temp_value += connection_pair[0].value * connection_pair[1].weight
 
                     neuron.value = self.sigmoid(temp_value + neuron.bias)
 
+    # The back-propagate step is where our ANN actually learns.
+    # It first calculates all the errors of the neurons starting from the output layer,
+    # and then calculates the delta weights and delta biases
     def back_propagate(self, l, outputs):
-
-        # For a lot of these, we will do a reversed enumerated list in order to back propagate, well, backwards
 
         if self.verbose >= 2: print("\n**** Back Propagation ***")
 
-        # Now, we can calculate the error of the output layers" neurons
         for i in range(len(self.neurons[-1])):
             self.neurons[-1][i].error = outputs[l][i] - self.neurons[-1][i].value
             if self.verbose >= 2: print("Error of the output neuron", q, "during output", l, "is", self.neurons[-1][q].error)
 
-        # Here we calculate the error of all the hidden layers" neurons
         for i, neuron_list in reversed(list(enumerate(self.neurons))):
             for neuron in neuron_list:
                 if i != len(self.neurons) - 1 and i != 0:
-                    # The value to store the total change as we iterate through all the errors
                     temp_error = 0
 
                     for connection_pair in neuron.connections_forward:
@@ -100,14 +95,11 @@ class ANN:
                     neuron.error = temp_error
                     if self.verbose >= 2: print("Error of the hidden neuron in layer ", neuron.layer, "during output", l, "is", neuron.error)
 
-        # Finally, we calculate and set the weights accordingly
         for i, neuron_list in reversed(list(enumerate(self.neurons))):
             for neuron in neuron_list:
                 for connection_pair in neuron.connections_forward:
 
-                    # This is the gradient we want to descend upon to minimise the error of our outputs
                     gradient = self.sigmoid_derivative(connection_pair[0].value)
-                    # This is the error of the neuron that the weight affects forward
                     error_forward = connection_pair[0].error
 
                     adjustment_bias = ((error_forward * gradient) * self.learning_rate)
@@ -126,23 +118,19 @@ class ANN:
 
         self.input_output_checks(desired_output, inputs)
 
-        # Real training time!
         for epoch in range(epochs):
             if self.verbose >= 1: print("\n", "Epoch", epoch + 1)
 
-            # For each input, run this loop!
             for l in range(len(inputs)):
 
                 self.feed_forward(l, inputs)
 
-                # get all outputs
                 output_neuron_outputs = []
                 for m in self.neurons[-1]:
                     output_neuron_outputs.append(m.value)
                 if self.verbose >= 1: print("For input: ", inputs[l], ", The output was Actual: ", desired_output[l], " – Guess: ", output_neuron_outputs, sep="")
                 self.back_propagate(l, desired_output)
 
-                # get all output errors
                 output_neuron_error = []
                 for n in self.neurons[-1]:
                     output_neuron_error.append(float(n.error))
@@ -155,11 +143,51 @@ class ANN:
 
                 print("\r", "Epoch ", epoch + 1, " Error Mitigation: ", f"{100 - (accuracy * 100):.2f}", "%", end="", sep="")
 
+    # This is a simple function that can flush the neurons and raise and error for the user to understand.
+    def shut_down_model(self, message):
+        self.neurons.clear()
+        raise ValueError(message)
+
+    # This function runs checks to see if the input and output that the user defined works for the given model
+    def input_output_checks(self, check_outputs, check_inputs):
+        for i, input_iter in enumerate(check_inputs):
+            if len(input_iter) > len(self.neurons[0]) or len(input_iter) < len(self.neurons[0]):
+                self.shut_down_model("Number of inputs does not match the number of input neurons at point " + str(i))
+            for input_num in input_iter:
+                if input_num > 1 or input_num < -1:
+                    self.shut_down_model("Input has a value outside range [-1, 1]")
+
+        for i, output_iter in enumerate(check_outputs):
+            # TODO: Fix below, non-functional
+            if len(output_iter) > len(self.neurons[-1]) or len(output_iter) < len(self.neurons[-1]):
+                self.shut_down_model("Number of outputs does not match the number of output neurons")
+
+            for j, outputs in enumerate(check_outputs):
+                for output_num in outputs:
+                    if output_num > 1 or output_num < -1:
+                        self.shut_down_model("Output has a value outside range [-1, 1] at point " + str(j))
+
+    # This function will feed-forward a set of inputs and return the output neurons values without back-propagation
+    # Hence, a prediction.
+    def predict(self, inputs):
+
+        self.feed_forward(0, inputs)
+        output_neuron_outputs = []
+        for output_neuron in self.neurons[-1]:
+            output_neuron_outputs.append(output_neuron.value)
+        return output_neuron_outputs
+
+    # Below are all of the activation functions we can use on our neurons values. These are chosen by the user.
+    @staticmethod
+    def relu(x):
+        return x * (x > 0)
+
+    @staticmethod
+    def relu_derivative(x):
+        return 1. * (x > 0)
+
     @staticmethod
     def sigmoid(x):
-        # The sigmoid function is an S shaped line that will squash our numbers down in between 0 and 1,
-        # sort of like the probability of that neuron being the one we want.
-        # using this if statement will help with errors being raised on too large or too small numbers
         if x >= 0:
             z = np.exp(-x)
             return 1 / (1 + z)
@@ -171,41 +199,10 @@ class ANN:
     def sigmoid_derivative(x):
         return x * (1 - x)
 
-    def shut_down_model(self, message):
-        self.neurons.clear()
-        raise ValueError(message)
 
-    def input_output_checks(self, check_outputs, check_inputs):
-        # Inputs and outputs will come in as [[X, X], [X, X]]
-        # Check if inputs match input layer, and if any are above 1 or below -1
-        for i, input_iter in enumerate(check_inputs):
-            if len(input_iter) > len(self.neurons[0]) or len(input_iter) < len(self.neurons[0]):
-                self.shut_down_model("Number of inputs does not match the number of input neurons at point " + str(i))
-            for input_num in input_iter:
-                if input_num > 1 or input_num < -1:
-                    self.shut_down_model("Input has a value outside range [-1, 1]")
-
-        # Check if outputs match ouput layer, and if any are above 1 or below -1
-        for i, output_iter in enumerate(check_outputs):
-            # TODO: Fix below, non-functional
-            if len(output_iter) > len(self.neurons[-1]) or len(output_iter) < len(self.neurons[-1]):
-                self.shut_down_model("Number of outputs does not match the number of output neurons")
-
-            for j, outputs in enumerate(check_outputs):
-                for output_num in outputs:
-                    if output_num > 1 or output_num < -1:
-                        self.shut_down_model("Output has a value outside range [-1, 1] at point " + str(j))
-
-    def predict(self, inputs):
-
-        self.feed_forward(0, inputs)
-
-        output_neuron_outputs = []
-        for output_neuron in self.neurons[-1]:
-            output_neuron_outputs.append(output_neuron.value)
-        return output_neuron_outputs
-
-
+# ************************************ Universal Neuron ****************************************
+# Simply an object that can contain the info of a neuron. (Connections, value, bias, and error)
+# **********************************************************************************************
 class Neuron:
     def __init__(self, layer, neurons):
         self.connections_forward = []
@@ -213,6 +210,7 @@ class Neuron:
         self.layer_num = layer
         self.bias = 0
         self.value = 0
+        self.error = 0
 
         neurons[layer].append(self)
 
@@ -223,6 +221,9 @@ class Neuron:
         self.connections_back.append([source_neuron, connection])
 
 
+# **************************** Universal Connection ********************************
+# Simply an object that can contain the info of a connection. (Weight, connections)
+# **********************************************************************************
 class Connection:
     def __init__(self, source_neuron, destination_neuron):
 
@@ -231,12 +232,14 @@ class Connection:
         destination_neuron.add_backward_connection(source_neuron, self)
 
 
+# This function preps the input data to keep it between 0 and 1
 def prep_array(array, divisor):
     for i in range(len(array)):
         array[i] = array[i] / divisor
     return array
 
 
+# Load a saved model from a serialized npy file
 def load_model(file):
     file_extension = re.search("[^.]*$", file)
     if file_extension.group(0) == "npy":
@@ -254,6 +257,7 @@ def load_model(file):
     return loaded_model[()]
 
 
+# Save a  model into a serialized npy file
 def save_model(model, file):
     file_extension = re.search("[^.]*$", file)
 
