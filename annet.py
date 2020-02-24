@@ -1,6 +1,7 @@
 import numpy as np
 import sys
 import re
+import pandas as pd
 # TODO: Add CNN and RNN functionality
 
 
@@ -267,3 +268,24 @@ def save_model(model, file):
         outfile = open(file + ".npy", 'wb')
     np.save(outfile, model)
     outfile.close()
+
+
+def tokenize(array):
+    pass
+
+    temp_array = []
+    for i in range(len(array)):
+        temp_array.append(i * len(array))
+
+    for i in range(len(array)):
+        temp_array[i] /= max(temp_array)
+
+    return temp_array
+
+
+def test_train_split(data, split):
+    if isinstance(data, list):
+        return data[:split], data[split:]
+    if isinstance(data, pd.DataFrame):
+        return data.iloc[:split], data.iloc[split:]
+
